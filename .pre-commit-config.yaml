@@ -24,3 +24,9 @@ repos:
         pass_filenames: true
         types: [ python ]
         files: \.py$
+
+      - id: test
+        name: test
+        language: system
+        entry: poetry run pytest
+        pass_filenames: false
