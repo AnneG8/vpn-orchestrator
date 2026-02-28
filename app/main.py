@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import get_session
+from app.db import get_session
 
 
 @asynccontextmanager

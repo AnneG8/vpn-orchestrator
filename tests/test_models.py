@@ -2,9 +2,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.db.models.client import Client
+from app.db.models import Client, Operation
 from app.db.models.enums import OperationAction, OperationResult
-from app.db.models.operation import Operation
 
 
 @pytest.mark.asyncio
