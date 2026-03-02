@@ -1,2 +1,4 @@
+[flake8]
 inline-quotes = '
 docstring-quotes = """
+per-file-ignores = alembic/versions/*.py: E,W,F
