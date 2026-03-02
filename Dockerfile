@@ -15,7 +15,7 @@ RUN pip install poetry==1.8.3
 
 COPY ./pyproject.toml ./poetry.lock ./
 
-RUN poetry install --no-root
+RUN poetry install --only main --no-root
 
 COPY . .
 
