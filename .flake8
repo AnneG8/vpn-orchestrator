@@ -1,4 +1,6 @@
 [flake8]
+max-line-length = 88
+extend-ignore = E203, W503
 inline-quotes = '
 docstring-quotes = """
 per-file-ignores = alembic/versions/*.py: E,W,F
