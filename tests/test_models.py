@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -9,6 +10,7 @@ from app.db.models.enums import OperationAction, OperationResult
 @pytest.mark.asyncio
 async def test_create_client(db_session):
     client = Client(
+        remnawave_uuid=uuid.uuid4(),
         expires_at=datetime.now(timezone.utc) + timedelta(days=30)
     )
 
@@ -23,6 +25,7 @@ async def test_create_client(db_session):
 @pytest.mark.asyncio
 async def test_create_operation(db_session):
     client = Client(
+        remnawave_uuid=uuid.uuid4(),
         expires_at=datetime.now(timezone.utc) + timedelta(days=30)
     )
     db_session.add(client)

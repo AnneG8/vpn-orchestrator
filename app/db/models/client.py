@@ -22,6 +22,12 @@ class Client(Base):
         default=uuid.uuid4,
     )
 
+    remnawave_uuid: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+        unique=True,
+    )
+
     status: Mapped[ClientStatus] = mapped_column(
         Enum(ClientStatus, name='client_status'),
         default=ClientStatus.ACTIVE,
