@@ -20,7 +20,7 @@ class RWClientCreate(BaseModel):
     expire_at: datetime = Field(alias='expireAt')
     active_internal_squads: list[str] = Field(
         default_factory=lambda: [settings.REMNAWAVE_DEFAULT_SQUAD_UUID],
-        alias='activeInternalSquad',
+        alias='activeInternalSquads',
     )
 
     model_config = ConfigDict(populate_by_name=True)
