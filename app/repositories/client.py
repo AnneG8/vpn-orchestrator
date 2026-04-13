@@ -13,10 +13,12 @@ class ClientRepository(BaseRepository[Client]):
     async def create(
         self,
         *,
+        rw_uuid: uuid.UUID,
         expires_at: datetime,
         status: ClientStatus = ClientStatus.ACTIVE,
     ) -> Client:
         client = Client(
+            remnawave_uuid=rw_uuid,
             expires_at=expires_at,
             status=status,
         )
@@ -26,6 +28,11 @@ class ClientRepository(BaseRepository[Client]):
 
     async def get_by_id(self, client_id: uuid.UUID) -> Client | None:
         stmt = select(Client).where(Client.id == client_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_by_rw_uuid(self, rw_uuid: uuid.UUID) -> Client | None:
+        stmt = select(Client).where(Client.remnawave_uuid == rw_uuid)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
