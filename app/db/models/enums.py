@@ -2,8 +2,8 @@ import enum
 
 
 class ClientStatus(str, enum.Enum):
-    ACTIVE = 'active'
-    BLOCKED = 'blocked'
+    ACTIVE = 'ACTIVE'
+    DISABLED = 'DISABLED'
 
 
 class OperationAction(str, enum.Enum):

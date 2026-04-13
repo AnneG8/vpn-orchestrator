@@ -19,7 +19,7 @@ async def test_create_client(db_session):
     await db_session.refresh(client)
 
     assert client.id is not None
-    assert client.status.value == 'active'
+    assert client.status.value == 'ACTIVE'
 
 
 @pytest.mark.asyncio
