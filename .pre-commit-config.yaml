@@ -24,6 +24,7 @@ repos:
         pass_filenames: true
         types: [ python ]
         files: \.py$
+        exclude: alembic/versions/.*\.py$
 
       - id: test
         name: test
