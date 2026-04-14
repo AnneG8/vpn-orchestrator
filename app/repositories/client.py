@@ -27,12 +27,20 @@ class ClientRepository(BaseRepository[Client]):
         return client
 
     async def get_by_id(self, client_id: uuid.UUID) -> Client | None:
-        stmt = select(Client).where(Client.id == client_id)
+        stmt = select(Client).where(
+            Client.id == client_id,
+            Client.status != ClientStatus.ARCHIVED,
+        )
+
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_rw_uuid(self, rw_uuid: uuid.UUID) -> Client | None:
-        stmt = select(Client).where(Client.remnawave_uuid == rw_uuid)
+        stmt = select(Client).where(
+            Client.remnawave_uuid == rw_uuid,
+            Client.status != ClientStatus.ARCHIVED,
+        )
+
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -44,7 +52,9 @@ class ClientRepository(BaseRepository[Client]):
     ) -> Sequence[Client]:
         stmt = select(Client)
 
-        if status is not None:
+        if status is None:
+            stmt = stmt.where(Client.status != ClientStatus.ARCHIVED)
+        else:
             stmt = stmt.where(Client.status == status)
 
         if expired is not None:

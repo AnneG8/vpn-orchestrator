@@ -3,7 +3,8 @@ import enum
 
 class ClientStatus(str, enum.Enum):
     ACTIVE = 'ACTIVE'
-    BLOCKED = 'BLOCKED'
+    DISABLED = 'DISABLED'
+    ARCHIVED = 'ARCHIVED'
 
 
 class OperationAction(str, enum.Enum):
