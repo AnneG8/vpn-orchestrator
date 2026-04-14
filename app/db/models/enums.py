@@ -3,7 +3,7 @@ import enum
 
 class ClientStatus(str, enum.Enum):
     ACTIVE = 'ACTIVE'
-    DISABLED = 'DISABLED'
+    BLOCKED = 'BLOCKED'
 
 
 class OperationAction(str, enum.Enum):
