@@ -26,13 +26,25 @@ class ClientRepository(BaseRepository[Client]):
         await self.session.flush()
         return client
 
-    async def get_by_id(self, client_id: uuid.UUID) -> Client | None:
+    async def get_by_id(
+            self, client_id: uuid.UUID, *, status: ClientStatus | None = None
+    ) -> Client | None:
         stmt = select(Client).where(Client.id == client_id)
+
+        if status is not None:
+            stmt = stmt.where(Client.status == status)
+
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_rw_uuid(self, rw_uuid: uuid.UUID) -> Client | None:
+    async def get_by_rw_uuid(
+            self, rw_uuid: uuid.UUID, *, status: ClientStatus | None = None
+    ) -> Client | None:
         stmt = select(Client).where(Client.remnawave_uuid == rw_uuid)
+
+        if status is not None:
+            stmt = stmt.where(Client.status == status)
+
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
