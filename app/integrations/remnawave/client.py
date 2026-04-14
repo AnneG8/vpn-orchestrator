@@ -50,7 +50,7 @@ class RemnaWaveClient:
         payload = RWClientCreate(
             username=username,
             expire_at=expires_at,
-        ).model_dump(by_alias=True)
+        ).model_dump(by_alias=True, mode='json')
 
         data = await self._request('POST', '/api/users', json=payload)
         return RWClientResponse.model_validate(data['response'])
@@ -77,7 +77,7 @@ class RemnaWaveClient:
         payload = RWClientUpdate(
             uuid=user_uuid,
             expire_at=expires_at,
-        ).model_dump(by_alias=True)
+        ).model_dump(by_alias=True, mode='json')
 
         data = await self._request('PATCH', '/api/users', json=payload)
         return RWClientResponse.model_validate(data['response'])
