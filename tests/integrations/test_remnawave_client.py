@@ -73,12 +73,9 @@ async def test_create_user(rw_client):
         assert request.url.path == '/api/users'
 
         body = json.loads(request.content)
-        # assert body['uuid'] == str(user_uuid)
         assert body['username'] == username
         assert body['status'] == 'ACTIVE'
-        # assert body['createdAt'] == created_at.isoformat()
         assert body['expireAt'] == expire_at.isoformat().replace('+00:00', 'Z')
-        # assert body['subscriptionUrl'] == 'https://test/sub/YnAKnx2BsYmzutfM'
         assert body['activeInternalSquads'] == [DEFAULT_SQUAD]
 
         response_json = build_response(
