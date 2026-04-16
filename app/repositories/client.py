@@ -10,6 +10,10 @@ from app.repositories import BaseRepository
 
 
 class ClientRepository(BaseRepository[Client]):
+    @staticmethod
+    def _not_archived():
+        return Client.status != ClientStatus.ARCHIVED
+
     async def create(
         self,
         *,
@@ -27,20 +31,15 @@ class ClientRepository(BaseRepository[Client]):
         return client
 
     async def get_by_id(self, client_id: uuid.UUID) -> Client | None:
-        stmt = select(Client).where(
-            Client.id == client_id,
-            Client.status != ClientStatus.ARCHIVED,
-        )
-
+        stmt = select(Client).where(Client.id == client_id, self._not_archived())
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_rw_uuid(self, rw_uuid: uuid.UUID) -> Client | None:
         stmt = select(Client).where(
             Client.remnawave_uuid == rw_uuid,
-            Client.status != ClientStatus.ARCHIVED,
+            self._not_archived(),
         )
-
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -52,10 +51,10 @@ class ClientRepository(BaseRepository[Client]):
     ) -> Sequence[Client]:
         stmt = select(Client)
 
-        if status is None:
-            stmt = stmt.where(Client.status != ClientStatus.ARCHIVED)
-        else:
+        if status is not None:
             stmt = stmt.where(Client.status == status)
+        else:
+            stmt = stmt.where(self._not_archived())
 
         if expired is not None:
             now = datetime.now(timezone.utc)

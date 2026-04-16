@@ -37,11 +37,19 @@ class RemnaWaveClient:
             response.raise_for_status()
             return response.json()
         except httpx.RequestError as err:
-            raise RemnaWaveConnectionError(str(err)) from err
+            raise RemnaWaveConnectionError(str(err), method=method, url=url) from err
         except httpx.HTTPStatusError as err:
+            try:
+                response_body = err.response.json()
+            except ValueError:
+                response_body = err.response.text
+
             raise RemnaWaveAPIError(
-                message=err.response.text,
+                'RemnaWave API returned error',
                 status_code=err.response.status_code,
+                method=method,
+                url=url,
+                response_body=response_body,
             ) from err
 
     async def create_user(

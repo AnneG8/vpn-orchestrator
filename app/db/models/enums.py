@@ -12,6 +12,7 @@ class OperationAction(str, enum.Enum):
     EXTEND_SUBSCRIPTION = 'extend_subscription'
     BLOCK = 'block'
     UNBLOCK = 'unblock'
+    ARCHIVE_CLIENT = 'archive_client'
     ROTATE_CONFIG = 'rotate_config'
     GET_CONFIG = 'get_config'
     AUTO_DEACTIVATE = 'auto_deactivate'
