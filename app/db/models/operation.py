@@ -22,9 +22,10 @@ class Operation(Base):
         default=uuid.uuid4,
     )
 
-    client_id: Mapped[uuid.UUID] = mapped_column(
+    client_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey('client.id', ondelete='RESTRICT'),
+        ForeignKey('client.id', ondelete='SET NULL'),
+        nullable=True,
     )
 
     action: Mapped[OperationAction] = mapped_column(
@@ -52,7 +53,7 @@ class Operation(Base):
         server_default=func.now(),
     )
 
-    client: Mapped[Client] = relationship(
+    client: Mapped[Client | None] = relationship(
         'Client',
-        back_populates='operations'
+        back_populates='operations',
     )
