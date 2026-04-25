@@ -1,3 +1,4 @@
+import httpx
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import (
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import (
 from testcontainers.postgres import PostgresContainer
 
 from app.db.models.base import Base
+from app.integrations.remnawave import RemnaWaveClient
 
 
 @pytest.fixture(scope='session')
@@ -53,3 +55,20 @@ async def db_session(engine):
     await session.close()
     await transaction.rollback()
     await connection.close()
+
+
+@pytest.fixture
+def mock_transport():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise NotImplementedError('Mock not configured')
+    return httpx.MockTransport(handler)
+
+
+@pytest.fixture
+def rw_client(mock_transport):
+    client = RemnaWaveClient()
+    client._client = httpx.AsyncClient(
+        transport=mock_transport,
+        base_url='http://test',
+    )
+    return client
