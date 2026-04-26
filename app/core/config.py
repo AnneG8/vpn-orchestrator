@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     DATABASE_URL: str = ''
+    DEBUG: bool = False
     REMNAWAVE_URL: str = ''
     REMNAWAVE_TOKEN: str = ''
     REMNAWAVE_DEFAULT_SQUAD_UUID: str = ''
