@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Sequence
 
 from sqlalchemy import select
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.db.models import Client
 from app.db.models.enums import ClientStatus
@@ -11,7 +12,7 @@ from app.repositories import BaseRepository
 
 class ClientRepository(BaseRepository[Client]):
     @staticmethod
-    def _not_archived():
+    def _not_archived() -> ColumnElement[bool]:
         return Client.status != ClientStatus.ARCHIVED
 
     async def create(
