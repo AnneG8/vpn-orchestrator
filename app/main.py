@@ -4,12 +4,11 @@ from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import get_async_session, init_models
+from app.db import get_async_session
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_models()
     yield
 
 
