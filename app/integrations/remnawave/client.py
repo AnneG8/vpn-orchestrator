@@ -1,25 +1,14 @@
 from datetime import datetime
-from typing import Any, Generator
+from typing import Any
 from uuid import UUID
 
 import httpx
 
 from app.core.config import settings
 
+from .auth import TokenAuth
 from .exceptions import RemnaWaveAPIError, RemnaWaveConnectionError
 from .schemas import RWClientCreate, RWClientResponse, RWClientUpdate
-
-
-class TokenAuth(httpx.Auth):
-    def __init__(self, token) -> None:
-        self.token = token
-
-    def auth_flow(
-            self,
-            request: httpx.Request,
-    ) -> Generator[httpx.Request, httpx.Response, None]:
-        request.headers['Authorization'] = f'Bearer {self.token}'
-        yield request
 
 
 class RemnaWaveClient:
