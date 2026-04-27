@@ -25,6 +25,10 @@ class OperationRepository(BaseRepository[Operation]):
         self,
         client_id: uuid.UUID,
     ) -> Sequence[Operation]:
-        stmt = select(Operation).where(Operation.client_id == client_id)
+        stmt = (
+            select(Operation)
+            .where(Operation.client_id == client_id)
+            .order_by(Operation.created_at.desc())
+        )
         result = await self.session.execute(stmt)
         return result.scalars().all()
