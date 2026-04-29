@@ -11,3 +11,7 @@ class OperationCreate:
     client_id: uuid.UUID | None = None
     payload: dict | None = None
     error: str | None = None
+
+    def __post_init__(self):
+        if self.result == OperationResult.FAIL and not self.error:
+            raise ValueError('Error must be provided for failed operation')
