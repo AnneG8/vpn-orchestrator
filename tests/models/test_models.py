@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.db.models import Client, Operation
-from app.db.models.enums import OperationAction, OperationResult
+from app.db.models.enums import ClientStatus, OperationAction, OperationResult
 
 
 @pytest.mark.asyncio
@@ -19,7 +19,7 @@ async def test_create_client(db_session):
     await db_session.refresh(client)
 
     assert client.id is not None
-    assert client.status.value == 'ACTIVE'
+    assert client.status is ClientStatus.ACTIVE
 
 
 @pytest.mark.asyncio
@@ -45,4 +45,4 @@ async def test_create_operation(db_session):
 
     assert operation.id is not None
     assert operation.client_id == client.id
-    assert operation.result == OperationResult.SUCCESS
+    assert operation.result is OperationResult.SUCCESS

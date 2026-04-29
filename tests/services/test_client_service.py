@@ -22,8 +22,8 @@ async def check_operation(
     assert len(operations) == 1
     if client is not None:
         assert operations[0].client_id == client.id
-    assert operations[0].action == action
-    assert operations[0].result == result
+    assert operations[0].action is action
+    assert operations[0].result is result
 
 
 @pytest.mark.asyncio
@@ -136,7 +136,7 @@ async def test_change_client_status(service, rw_client, db_session, client):
     await service.block_client(client_id=client.id)
 
     await db_session.refresh(client)
-    assert client.status == ClientStatus.DISABLED
+    assert client.status is ClientStatus.DISABLED
     await check_operation(
         db_session,
         action=OperationAction.BLOCK,
@@ -149,7 +149,7 @@ async def test_change_client_status(service, rw_client, db_session, client):
     await service.unblock_client(client_id=client.id)
 
     await db_session.refresh(client)
-    assert client.status == ClientStatus.ACTIVE
+    assert client.status is ClientStatus.ACTIVE
     await check_operation(
         db_session,
         action=OperationAction.UNBLOCK,
@@ -162,7 +162,7 @@ async def test_change_client_status(service, rw_client, db_session, client):
     await service.archive_client(client_id=client.id)
 
     await db_session.refresh(client)
-    assert client.status == ClientStatus.ARCHIVED
+    assert client.status is ClientStatus.ARCHIVED
     await check_operation(
         db_session,
         action=OperationAction.ARCHIVE_CLIENT,
