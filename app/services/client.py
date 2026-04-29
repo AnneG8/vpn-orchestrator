@@ -1,107 +1,118 @@
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Sequence
+from typing import Callable, Sequence
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.core import UnitOfWork
 from app.db.models import Client
-from app.db.models.enums import ClientStatus, OperationAction, OperationResult
-from app.domain import OperationCreate
+from app.db.models.enums import ClientStatus, OperationAction
 from app.integrations.remnawave import RemnaWaveClient
-from app.integrations.remnawave.exceptions import RemnaWaveError
-from app.repositories import ClientRepository, OperationRepository
 
-
-class ClientNotFoundError(Exception):
-    pass
+from .audit import AuditService
+from .exceptions import ClientNotFoundError, UnsupportedClientStatusError
 
 
 class ClientService:
-    def __init__(self, session: AsyncSession, rw_client: RemnaWaveClient) -> None:
-        self.session = session
-        self.client_repo = ClientRepository(session)
-        self.operation_repo = OperationRepository(session)
-        self.rw_client = rw_client
+    def __init__(
+            self,
+            uow_factory: Callable[[], UnitOfWork],
+            rw_client: RemnaWaveClient,
+            audit_service: AuditService,
+    ) -> None:
+        self._uow_factory = uow_factory
+        self._rw_client = rw_client
+        self._audit = audit_service
 
-    async def _get_client_or_raise(self, client_id: uuid.UUID) -> Client:
-        client = await self.client_repo.get_by_id(client_id)
+    async def _get_client_or_raise(
+            self,
+            client_id: uuid.UUID,
+            *,
+            uow: UnitOfWork,
+    ) -> Client:
+        client = await uow.client_repo.get_by_id(client_id)
         if not client:
-            raise ClientNotFoundError(f'Client {client_id} not found')
+            raise ClientNotFoundError(client_id)
         return client
 
     async def _change_client_status(
         self,
-        client: Client,
+        client_id: uuid.UUID,
         *,
         status: ClientStatus,
         action: OperationAction,
     ) -> None:
-        result = OperationResult.FAIL
         try:
-            if status is ClientStatus.ACTIVE:
-                await self.rw_client.enable_user(user_uuid=client.remnawave_uuid)
-            else:
-                await self.rw_client.disable_user(user_uuid=client.remnawave_uuid)
+            async with self._uow_factory() as uow:
+                client = await self._get_client_or_raise(client_id, uow=uow)
 
-            await self.client_repo.update_status(client, status)
+                match status:
+                    case ClientStatus.ACTIVE:
+                        await self._rw_client.enable_user(
+                            user_uuid=client.remnawave_uuid
+                        )
+                    case ClientStatus.DISABLED:
+                        await self._rw_client.disable_user(
+                            user_uuid=client.remnawave_uuid
+                        )
 
-            result = OperationResult.SUCCESS
+                    case ClientStatus.ARCHIVED:
+                        await self._rw_client.disable_user(
+                            user_uuid=client.remnawave_uuid
+                        )
 
-        except RemnaWaveError:
-            await self.session.rollback()
-            raise
-        except Exception:
-            await self.session.rollback()
-            raise
-        finally:
-            await self.operation_repo.create(
-                OperationCreate(
-                    client_id=client.id,
-                    action=action,
-                    result=result,
-                )
+                    case _:
+                        raise UnsupportedClientStatusError(status)
+
+                await uow.client_repo.update_status(client, status)
+
+            await self._audit.success(
+                client_id=client_id,
+                action=action,
             )
-            await self.session.commit()
+
+        except Exception as err:
+            await self._audit.fail(
+                client_id=client_id,
+                action=action,
+                error=err,
+            )
+            raise
 
     async def create_client(self, *, username: str, days: int) -> uuid.UUID:
         expires_at = datetime.now(timezone.utc) + timedelta(days=days)
 
         client: Client | None = None
-        result = OperationResult.FAIL
         try:
-            rw_user = await self.rw_client.create_user(
-                username=username,
-                expires_at=expires_at,
+            async with self._uow_factory() as uow:
+                rw_user = await self._rw_client.create_user(
+                    username=username,
+                    expires_at=expires_at,
+                )
+
+                client = await uow.client_repo.create(
+                    rw_uuid=rw_user.uuid,
+                    expires_at=rw_user.expire_at,
+                )
+
+            await self._audit.success(
+                client_id=client.id,
+                action=OperationAction.CREATE_CLIENT,
+                payload={'username': username},
             )
 
-            client = await self.client_repo.create(
-                rw_uuid=rw_user.uuid,
-                expires_at=rw_user.expire_at,
-            )
-
-            result = OperationResult.SUCCESS
             return client.id
 
-        except RemnaWaveError:
-            await self.session.rollback()
+        except Exception as err:
+            await self._audit.fail(
+                client_id=client.id if client else None,
+                action=OperationAction.CREATE_CLIENT,
+                payload={'username': username},
+                error=err,
+            )
             raise
-        except Exception:
-            await self.session.rollback()
-            raise
-        finally:
-            if client is not None:
-                await self.operation_repo.create(
-                    OperationCreate(
-                        client_id=client.id,
-                        action=OperationAction.CREATE_CLIENT,
-                        result=result,
-                        payload={'username': username},
-                    )
-                )
-                await self.session.commit()
 
-    async def get_client(self, client_id: uuid.UUID) -> Client:
-        return await self._get_client_or_raise(client_id)
+    async def get_client(self, *, client_id: uuid.UUID) -> Client:
+        async with self._uow_factory() as uow:
+            return await self._get_client_or_raise(client_id, uow=uow)
 
     async def list_clients(
             self,
@@ -109,118 +120,107 @@ class ClientService:
             status: ClientStatus | None = None,
             expired: bool | None = None,
     ) -> Sequence[Client]:
-        return await self.client_repo.list(status=status, expired=expired)
+        async with self._uow_factory() as uow:
+            return await uow.client_repo.list(status=status, expired=expired)
 
     async def extend_subscription(self, *, client_id: uuid.UUID, days: int) -> None:
-        client = await self._get_client_or_raise(client_id)
-        new_expiration = client.expires_at + timedelta(days=days)
-
-        result = OperationResult.FAIL
         try:
-            rw_user = await self.rw_client.update_user(
-                user_uuid=client.remnawave_uuid,
-                expires_at=new_expiration,
-            )
+            async with self._uow_factory() as uow:
+                client = await self._get_client_or_raise(client_id, uow=uow)
+                new_expiration = client.expires_at + timedelta(days=days)
 
-            await self.client_repo.extend_subscription(
-                client,
-                rw_user.expire_at,
-            )
-
-            result = OperationResult.SUCCESS
-
-        except RemnaWaveError:
-            await self.session.rollback()
-            raise
-        except Exception:
-            await self.session.rollback()
-            raise
-        finally:
-            await self.operation_repo.create(
-                OperationCreate(
-                    client_id=client.id,
-                    action=OperationAction.EXTEND_SUBSCRIPTION,
-                    result=result,
-                    payload={
-                        'days': days,
-                        'new_expiration': new_expiration.isoformat(),
-                    },
+                rw_user = await self._rw_client.update_user(
+                    user_uuid=client.remnawave_uuid,
+                    expires_at=new_expiration,
                 )
+
+                await uow.client_repo.extend_subscription(
+                    client,
+                    rw_user.expire_at,
+                )
+
+            await self._audit.success(
+                client_id=client_id,
+                action=OperationAction.EXTEND_SUBSCRIPTION,
+                payload={
+                    'days': days,
+                    'new_expiration': new_expiration.isoformat(),
+                },
             )
-            await self.session.commit()
+
+        except Exception as err:
+            await self._audit.fail(
+                client_id=client_id,
+                action=OperationAction.EXTEND_SUBSCRIPTION,
+                payload={'days': days},
+                error=err,
+            )
+            raise
 
     async def block_client(self, *, client_id: uuid.UUID) -> None:
-        client = await self._get_client_or_raise(client_id)
-
         await self._change_client_status(
-            client,
+            client_id,
             status=ClientStatus.DISABLED,
             action=OperationAction.BLOCK,
         )
 
     async def unblock_client(self, *, client_id: uuid.UUID) -> None:
-        client = await self._get_client_or_raise(client_id)
-
         await self._change_client_status(
-            client,
+            client_id,
             status=ClientStatus.ACTIVE,
             action=OperationAction.UNBLOCK,
         )
 
     async def archive_client(self, *, client_id: uuid.UUID) -> None:
-        client = await self._get_client_or_raise(client_id)
-
         await self._change_client_status(
-            client,
+            client_id,
             status=ClientStatus.ARCHIVED,
             action=OperationAction.ARCHIVE_CLIENT,
         )
 
     async def get_config(self, *, client_id: uuid.UUID) -> str:
-        client = await self._get_client_or_raise(client_id)
-
-        result = OperationResult.FAIL
         try:
-            rw_user = await self.rw_client.get_user(
-                user_uuid=client.remnawave_uuid,
+            async with self._uow_factory() as uow:
+                client = await self._get_client_or_raise(client_id, uow=uow)
+
+                rw_user = await self._rw_client.get_user(
+                    user_uuid=client.remnawave_uuid,
+                )
+
+            await self._audit.success(
+                client_id=client_id,
+                action=OperationAction.GET_CONFIG,
             )
 
-            result = OperationResult.SUCCESS
             return rw_user.sub_url
-        except RemnaWaveError:
-            await self.session.rollback()
-            raise
-        finally:
-            await self.operation_repo.create(
-                OperationCreate(
-                    client_id=client.id,
-                    action=OperationAction.GET_CONFIG,
-                    result=result,
-                )
+        except Exception as err:
+            await self._audit.fail(
+                client_id=client_id,
+                action=OperationAction.GET_CONFIG,
+                error=err,
             )
-            await self.session.commit()
+            raise
 
     async def rotate_config(self, *, client_id: uuid.UUID) -> str:
-        client = await self._get_client_or_raise(client_id)
-
-        result = OperationResult.FAIL
         try:
-            rw_user = await self.rw_client.revoke_subscription(
-                user_uuid=client.remnawave_uuid,
+            async with self._uow_factory() as uow:
+                client = await self._get_client_or_raise(client_id, uow=uow)
+
+                rw_user = await self._rw_client.revoke_subscription(
+                    user_uuid=client.remnawave_uuid,
+                )
+
+            await self._audit.success(
+                client_id=client_id,
+                action=OperationAction.ROTATE_CONFIG,
             )
 
-            result = OperationResult.SUCCESS
             return rw_user.sub_url
 
-        except RemnaWaveError:
-            await self.session.rollback()
-            raise
-        finally:
-            await self.operation_repo.create(
-                OperationCreate(
-                    client_id=client.id,
-                    action=OperationAction.ROTATE_CONFIG,
-                    result=result,
-                )
+        except Exception as err:
+            await self._audit.fail(
+                client_id=client_id,
+                action=OperationAction.ROTATE_CONFIG,
+                error=err,
             )
-            await self.session.commit()
+            raise
