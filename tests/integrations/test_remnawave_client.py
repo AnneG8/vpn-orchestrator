@@ -45,7 +45,7 @@ TEST_RESPONSE = {
             'usedTrafficBytes': 0
         },
         'username': 'default_test_user',
-        'uuid': 'default-uuid',
+        'uuid': '36292ccd-7c44-41ce-8f7b-0527fef39e06',
         'vlessUuid': '3452cbe5-4c94-49ee-9b90-2ae450b4d0f0'
     }
 }
