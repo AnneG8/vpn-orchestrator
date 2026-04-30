@@ -3,11 +3,10 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.common.constants import USERNAME_PATTERN
 from app.core.config import settings
 
 from .enums import RWUserStatus
-
-USERNAME_PATTERN = r'^[a-zA-Z0-9_-]+$'
 
 
 class RWClientCreate(BaseModel):
