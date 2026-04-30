@@ -66,9 +66,9 @@ def mock_transport():
 
 @pytest.fixture
 def rw_client(mock_transport):
-    client = RemnaWaveClient()
-    client._client = httpx.AsyncClient(
+    http_client = httpx.AsyncClient(
         transport=mock_transport,
         base_url='http://test',
     )
+    client = RemnaWaveClient(http_client)
     return client

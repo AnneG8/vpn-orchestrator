@@ -4,21 +4,13 @@ from uuid import UUID
 
 import httpx
 
-from app.core.config import settings
-
-from .auth import TokenAuth
 from .exceptions import RemnaWaveAPIError, RemnaWaveConnectionError
 from .schemas import RWClientCreate, RWClientResponse, RWClientUpdate
 
 
 class RemnaWaveClient:
-    def __init__(self) -> None:
-        self.base_url = settings.REMNAWAVE_URL
-        self._client = httpx.AsyncClient(
-            base_url=self.base_url,
-            auth=TokenAuth(settings.REMNAWAVE_TOKEN),
-            timeout=10.0,
-        )
+    def __init__(self, client: httpx.AsyncClient) -> None:
+        self._client = client
 
     async def _request(self, method: str, url: str, **kwargs) -> dict[str, Any]:
         try:
@@ -88,6 +80,3 @@ class RemnaWaveClient:
             json=payload,
         )
         return RWClientResponse.model_validate(data['response'])
-
-    async def close(self) -> None:
-        await self._client.aclose()
