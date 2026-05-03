@@ -3,7 +3,7 @@ from typing import Type
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.repositories import ClientRepository
+from app.repositories import ClientRepository, OperationRepository
 
 
 class UnitOfWork:
@@ -13,6 +13,7 @@ class UnitOfWork:
     async def __aenter__(self) -> 'UnitOfWork':
         self.session = self._session_factory()
         self.client_repo = ClientRepository(self.session)
+        self.operation_repo = OperationRepository(self.session)
         return self
 
     async def __aexit__(
