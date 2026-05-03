@@ -34,3 +34,4 @@ class ClientResponse(BaseModel):
 
 class ClientsListResponse(BaseModel):
     items: list[ClientResponse]
+    next_cursor: datetime | None

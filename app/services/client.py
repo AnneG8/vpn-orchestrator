@@ -119,9 +119,16 @@ class ClientService:
             *,
             status: ClientStatus | None = None,
             expired: bool | None = None,
+            cursor: datetime | None = None,
+            limit: int = 20,
     ) -> Sequence[Client]:
         async with self._uow_factory() as uow:
-            return await uow.client_repo.list(status=status, expired=expired)
+            return await uow.client_repo.list(
+                status=status,
+                expired=expired,
+                cursor=cursor,
+                limit=limit,
+            )
 
     async def extend_subscription(self, *, client_id: uuid.UUID, days: int) -> None:
         try:

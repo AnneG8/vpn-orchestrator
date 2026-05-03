@@ -49,6 +49,8 @@ class ClientRepository(BaseRepository[Client]):
         *,
         status: ClientStatus | None = None,
         expired: bool | None = None,
+        cursor: datetime | None = None,
+        limit: int = 20,
     ) -> Sequence[Client]:
         stmt = select(Client)
 
@@ -63,6 +65,11 @@ class ClientRepository(BaseRepository[Client]):
                 stmt = stmt.where(Client.expires_at < now)
             else:
                 stmt = stmt.where(Client.expires_at >= now)
+
+        if cursor is not None:
+            stmt = stmt.where(Client.created_at < cursor)
+
+        stmt = stmt.order_by(Client.created_at.desc()).limit(limit)
 
         result = await self.session.execute(stmt)
         return result.scalars().all()

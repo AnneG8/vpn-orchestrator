@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, status
 
@@ -45,13 +46,23 @@ async def get_client(
 async def list_clients(
     status: ClientStatus | None = Query(None),
     expired: bool | None = Query(None),
+    cursor: datetime | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
     service: ClientService = Depends(get_client_service),
 ):
     clients = await service.list_clients(
         status=status,
         expired=expired,
+        cursor=cursor,
+        limit=limit,
     )
-    return {'items': clients}
+
+    next_cursor = clients[-1].created_at if clients else None
+
+    return {
+        'items': clients,
+        'next_cursor': next_cursor,
+    }
 
 
 @router.post('/{client_id}/extend', status_code=status.HTTP_204_NO_CONTENT)
