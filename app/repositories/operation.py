@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Sequence
 
 from sqlalchemy import select
@@ -21,14 +22,22 @@ class OperationRepository(BaseRepository[Operation]):
         await self.session.flush()
         return operation
 
-    async def find_by_client(
-        self,
-        client_id: uuid.UUID,
+    async def list(
+            self,
+            *,
+            client_id: uuid.UUID | None = None,
+            cursor: datetime | None = None,
+            limit: int = 20,
     ) -> Sequence[Operation]:
-        stmt = (
-            select(Operation)
-            .where(Operation.client_id == client_id)
-            .order_by(Operation.created_at.desc())
-        )
+        stmt = select(Operation)
+
+        if client_id is not None:
+            stmt = stmt.where(Operation.client_id == client_id)
+
+        if cursor is not None:
+            stmt = stmt.where(Operation.created_at < cursor)
+
+        stmt = stmt.order_by(Operation.created_at.desc()).limit(limit)
+
         result = await self.session.execute(stmt)
         return result.scalars().all()
