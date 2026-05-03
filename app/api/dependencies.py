@@ -5,7 +5,7 @@ from fastapi import Depends, Request
 from app.core import UnitOfWork
 from app.db import async_session_factory
 from app.integrations.remnawave import RemnaWaveClient
-from app.services import ClientService
+from app.services import ClientService, OperationService
 from app.services.audit import AuditService
 
 
@@ -33,3 +33,9 @@ def get_client_service(
         rw_client=rw_client,
         audit_service=audit_service,
     )
+
+
+def get_operation_service(
+    uow_factory: Callable[[], UnitOfWork] = Depends(get_uow_factory),
+) -> OperationService:
+    return OperationService(uow_factory=uow_factory)

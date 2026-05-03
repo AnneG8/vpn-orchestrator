@@ -6,7 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.exceptions import register_exception_handlers
-from app.api.routers import clients_router
+from app.api.routers import clients_router, operations_router
 from app.core.config import settings
 from app.db import async_session_factory, get_async_session
 from app.integrations.remnawave.auth import TokenAuth
@@ -35,6 +35,7 @@ app = FastAPI(title='VPN Orchestrator', lifespan=lifespan)
 register_exception_handlers(app)
 
 app.include_router(clients_router, prefix='/api')
+app.include_router(operations_router, prefix='/api')
 
 
 @app.get('/health')

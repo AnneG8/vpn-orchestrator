@@ -5,6 +5,7 @@ from .client import (
     CreateClientResponse,
     ExtendSubRequest,
 )
+from .operation import OperationsListResponse
 
 __all__ = [
     'ClientResponse',
@@ -12,4 +13,5 @@ __all__ = [
     'CreateClientRequest',
     'CreateClientResponse',
     'ExtendSubRequest',
+    'OperationsListResponse',
 ]
