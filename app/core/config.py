@@ -3,6 +3,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     DATABASE_URL: str
+    REDIS_URL: str
+    IDEMPOTENCY_LOCK_TTL: int
+    IDEMPOTENCY_CACHE_TTL: int
     DEBUG: bool = False
     REMNAWAVE_URL: str
     REMNAWAVE_TOKEN: str
