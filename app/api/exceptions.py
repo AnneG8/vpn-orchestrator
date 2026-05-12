@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from app.core.config import settings
 from app.integrations.remnawave.exceptions import (
     RemnaWaveAPIError,
     RemnaWaveConnectionError,
@@ -74,7 +75,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
-                'error': 'Internal server error',
+                'error': str(exc) if settings.DEBUG else 'Internal server error',
                 'type': 'internal_error',
             },
         )
