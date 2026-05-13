@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, func
+from sqlalchemy import DateTime, Enum, Index, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,6 +16,12 @@ if TYPE_CHECKING:
 
 
 class Client(Base):
+    __table_args__ = (
+        Index('ix_client_status_created_at', 'status', 'created_at'),
+        Index('ix_client_created_at', 'created_at'),
+        Index('ix_client_expires_at', 'expires_at'),
+    )
+
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
