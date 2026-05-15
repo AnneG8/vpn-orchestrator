@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -5,7 +6,12 @@ from uuid import UUID
 import httpx
 
 from .exceptions import RemnaWaveAPIError, RemnaWaveConnectionError
-from .schemas import RWClientCreate, RWClientResponse, RWClientUpdate
+from .schemas import (
+    RWClientCreate,
+    RWClientResponse,
+    RWClientsPageResponse,
+    RWClientUpdate,
+)
 
 
 class RemnaWaveClient:
@@ -47,6 +53,44 @@ class RemnaWaveClient:
     async def get_user(self, *, user_uuid: UUID) -> RWClientResponse:
         data = await self._request('GET', f'/api/users/{user_uuid}')
         return RWClientResponse.model_validate(data['response'])
+
+    async def get_users(
+            self,
+            *,
+            size: int = 100,
+            start: int = 0,
+    ) -> RWClientsPageResponse:
+        data = await self._request(
+            'GET',
+            '/api/users',
+            params={
+                'size': size,
+                'start': start,
+            },
+        )
+        return RWClientsPageResponse.model_validate(data['response'])
+
+    async def iter_users(
+            self,
+            *,
+            page_size: int = 100,
+    ) -> AsyncIterator[RWClientResponse]:
+        start = 0
+
+        while True:
+            page = await self.get_users(
+                size=page_size,
+                start=start,
+            )
+            if not page.items:
+                break
+
+            for user in page.items:
+                yield user
+
+            start += page_size
+            if start >= page.total:
+                break
 
     async def disable_user(self, *, user_uuid: UUID) -> None:
         await self._request(

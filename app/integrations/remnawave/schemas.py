@@ -42,9 +42,15 @@ class RWClientResponse(BaseModel):
     status: RWUserStatus
     created_at: datetime = Field(alias='createdAt')
     expire_at: datetime = Field(alias='expireAt')
+    updated_at: datetime = Field(alias='updatedAt')
     sub_url: str = Field(alias='subscriptionUrl')
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class RWClientsPageResponse(BaseModel):
+    items: list[RWClientResponse]
+    total: int
 
 
 # class RWClientUpdateRequest(BaseModel):
