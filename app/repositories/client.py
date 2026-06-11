@@ -7,7 +7,10 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from app.db.models import Client
 from app.db.models.enums import ClientStatus
+from app.domain import ClientEntity
 from app.repositories import BaseRepository
+
+from .mapper import ClientMapper
 
 
 class ClientRepository(BaseRepository[Client]):
@@ -21,7 +24,7 @@ class ClientRepository(BaseRepository[Client]):
         rw_uuid: uuid.UUID,
         expires_at: datetime,
         status: ClientStatus = ClientStatus.ACTIVE,
-    ) -> Client:
+    ) -> ClientEntity:
         client = Client(
             remnawave_uuid=rw_uuid,
             expires_at=expires_at,
@@ -29,20 +32,30 @@ class ClientRepository(BaseRepository[Client]):
         )
         self.session.add(client)
         await self.session.flush()
-        return client
+        return ClientMapper.to_domain(client)
 
-    async def get_by_id(self, client_id: uuid.UUID) -> Client | None:
+    async def get_by_id(self, client_id: uuid.UUID) -> ClientEntity | None:
         stmt = select(Client).where(Client.id == client_id, self._not_archived())
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
 
-    async def get_by_rw_uuid(self, rw_uuid: uuid.UUID) -> Client | None:
+        client = result.scalar_one_or_none()
+        if not client:
+            return None
+
+        return ClientMapper.to_domain(client)
+
+    async def get_by_rw_uuid(self, rw_uuid: uuid.UUID) -> ClientEntity | None:
         stmt = select(Client).where(
             Client.remnawave_uuid == rw_uuid,
             self._not_archived(),
         )
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+
+        client = result.scalar_one_or_none()
+        if not client:
+            return None
+
+        return ClientMapper.to_domain(client)
 
     async def list(
         self,
@@ -51,13 +64,11 @@ class ClientRepository(BaseRepository[Client]):
         expired: bool | None = None,
         cursor: datetime | None = None,
         limit: int = 20,
-    ) -> Sequence[Client]:
-        stmt = select(Client)
+    ) -> Sequence[ClientEntity]:
+        stmt = select(Client).where(self._not_archived())
 
         if status is not None:
             stmt = stmt.where(Client.status == status)
-        else:
-            stmt = stmt.where(self._not_archived())
 
         if expired is not None:
             now = datetime.now(timezone.utc)
@@ -70,24 +81,16 @@ class ClientRepository(BaseRepository[Client]):
             stmt = stmt.where(Client.created_at < cursor)
 
         stmt = stmt.order_by(Client.created_at.desc()).limit(limit)
-
         result = await self.session.execute(stmt)
-        return result.scalars().all()
 
-    async def update_status(
-        self,
-        client: Client,
-        status: ClientStatus,
-    ) -> Client:
-        client.status = status
-        await self.session.flush()
-        return client
+        clients = result.scalars().all()
+        return [ClientMapper.to_domain(client) for client in clients]
 
-    async def extend_subscription(
-        self,
-        client: Client,
-        new_expiration: datetime,
-    ) -> Client:
-        client.expires_at = new_expiration
+    async def update(self, client_entity: ClientEntity) -> None:
+        stmt = select(Client).where(Client.id == client_entity.id)
+        result = await self.session.execute(stmt)
+
+        client = result.scalar_one()
+        ClientMapper.update_model(client, client_entity)
+
         await self.session.flush()
-        return client

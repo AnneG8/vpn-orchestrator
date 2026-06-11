@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import httpx
 import pytest
 
-from app.integrations.remnawave.enums import RWUserStatus
+from app.db.models.enums import ClientStatus
 from app.integrations.remnawave.exceptions import (
     RemnaWaveAPIError,
     RemnaWaveConnectionError,
@@ -75,7 +75,7 @@ async def test_create_user(rw_client):
 
         body = json.loads(request.content)
         assert body['username'] == username
-        assert body['status'] == RWUserStatus.ACTIVE.value
+        assert body['status'] == ClientStatus.ACTIVE.value
         assert body['expireAt'] == expire_at.isoformat().replace('+00:00', 'Z')
         assert body['activeInternalSquads'] == [DEFAULT_SQUAD]
 
@@ -96,9 +96,9 @@ async def test_create_user(rw_client):
 
     assert result.uuid == user_uuid
     assert result.username == username
-    assert result.status is RWUserStatus.ACTIVE
+    assert result.status is ClientStatus.ACTIVE
     assert result.created_at == datetime(2026, 1, 1, tzinfo=timezone.utc)
-    assert result.expire_at == expire_at
+    assert result.expires_at == expire_at
     assert result.sub_url == SUB_URL
 
 
@@ -119,9 +119,9 @@ async def test_get_user(rw_client):
 
     assert result.uuid == user_uuid
     assert result.username == 'default_test_user'
-    assert result.status is RWUserStatus.ACTIVE
+    assert result.status is ClientStatus.ACTIVE
     assert result.created_at == datetime(2026, 1, 1, tzinfo=timezone.utc)
-    assert result.expire_at == datetime(2027, 1, 1, tzinfo=timezone.utc)
+    assert result.expires_at == datetime(2027, 1, 1, tzinfo=timezone.utc)
     assert result.sub_url == SUB_URL
 
 
@@ -153,9 +153,9 @@ async def test_update_user(rw_client):
 
     assert result.uuid == user_uuid
     assert result.username == 'default_test_user'
-    assert result.status is RWUserStatus.ACTIVE
+    assert result.status is ClientStatus.ACTIVE
     assert result.created_at == datetime(2026, 1, 1, tzinfo=timezone.utc)
-    assert result.expire_at == new_expire_at
+    assert result.expires_at == new_expire_at
     assert result.sub_url == SUB_URL
 
 

@@ -2,14 +2,15 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
+from app.domain.exceptions import (
+    ClientArchivedError,
+    InvalidSubscriptionDurationError,
+)
 from app.integrations.remnawave.exceptions import (
     RemnaWaveAPIError,
     RemnaWaveConnectionError,
 )
-from app.services.exceptions import (
-    ClientNotFoundError,
-    UnsupportedClientStatusError,
-)
+from app.services.exceptions import ClientNotFoundError
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -24,19 +25,6 @@ def register_exception_handlers(app: FastAPI) -> None:
             content={
                 'error': str(exc),
                 'type': 'client_not_found',
-            },
-        )
-
-    @app.exception_handler(UnsupportedClientStatusError)
-    async def unsupported_status_handler(
-        request: Request,
-        exc: UnsupportedClientStatusError,
-    ) -> JSONResponse:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={
-                'error': str(exc),
-                'type': 'unsupported_status',
             },
         )
 
@@ -64,6 +52,32 @@ def register_exception_handlers(app: FastAPI) -> None:
                 'error': str(exc),
                 'type': 'remnawave_api_error',
                 'details': exc.response_body,
+            },
+        )
+
+    @app.exception_handler(ClientArchivedError)
+    async def client_archived_handler(
+        request: Request,
+        exc: ClientArchivedError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                'error': str(exc),
+                'type': 'client_not_found',
+            },
+        )
+
+    @app.exception_handler(InvalidSubscriptionDurationError)
+    async def invalid_subscription_duration_handler(
+        request: Request,
+        exc: InvalidSubscriptionDurationError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            content={
+                'error': str(exc),
+                'type': 'invalid_subscription_duration_error',
             },
         )
 

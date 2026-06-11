@@ -3,12 +3,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable, Sequence
 
 from app.core import UnitOfWork
-from app.db.models import Client
 from app.db.models.enums import ClientStatus, OperationAction
+from app.domain.client import ClientEntity
 from app.integrations.remnawave import RemnaWaveClient
 
 from .audit import AuditService
-from .exceptions import ClientNotFoundError, UnsupportedClientStatusError
+from .exceptions import ClientNotFoundError
 
 
 class ClientService:
@@ -27,42 +27,43 @@ class ClientService:
             client_id: uuid.UUID,
             *,
             uow: UnitOfWork,
-    ) -> Client:
+    ) -> ClientEntity:
         client = await uow.client_repo.get_by_id(client_id)
         if not client:
             raise ClientNotFoundError(client_id)
+
         return client
 
     async def _change_client_status(
         self,
         client_id: uuid.UUID,
         *,
-        status: ClientStatus,
         action: OperationAction,
     ) -> None:
         try:
             async with self._uow_factory() as uow:
                 client = await self._get_client_or_raise(client_id, uow=uow)
 
-                match status:
-                    case ClientStatus.ACTIVE:
+                match action:
+                    case OperationAction.UNBLOCK:
                         await self._rw_client.enable_user(
                             user_uuid=client.remnawave_uuid
                         )
-                    case ClientStatus.DISABLED:
+                        client.enable()
+
+                    case OperationAction.BLOCK:
                         await self._rw_client.disable_user(
                             user_uuid=client.remnawave_uuid
                         )
+                        client.disable()
 
-                    case ClientStatus.ARCHIVED:
+                    case OperationAction.ARCHIVE_CLIENT:
                         await self._rw_client.disable_user(
                             user_uuid=client.remnawave_uuid
                         )
+                        client.archive()
 
-                    case _:
-                        raise UnsupportedClientStatusError(status)
-
-                await uow.client_repo.update_status(client, status)
+                await uow.client_repo.update(client)
 
             await self._audit.success(
                 client_id=client_id,
@@ -80,7 +81,7 @@ class ClientService:
     async def create_client(self, *, username: str, days: int) -> uuid.UUID:
         expires_at = datetime.now(timezone.utc) + timedelta(days=days)
 
-        client: Client | None = None
+        client: ClientEntity | None = None
         try:
             async with self._uow_factory() as uow:
                 rw_user = await self._rw_client.create_user(
@@ -90,7 +91,7 @@ class ClientService:
 
                 client = await uow.client_repo.create(
                     rw_uuid=rw_user.uuid,
-                    expires_at=rw_user.expire_at,
+                    expires_at=rw_user.expires_at,
                 )
 
             await self._audit.success(
@@ -110,7 +111,7 @@ class ClientService:
             )
             raise
 
-    async def get_client(self, *, client_id: uuid.UUID) -> Client:
+    async def get_client(self, *, client_id: uuid.UUID) -> ClientEntity:
         async with self._uow_factory() as uow:
             return await self._get_client_or_raise(client_id, uow=uow)
 
@@ -121,7 +122,7 @@ class ClientService:
             expired: bool | None = None,
             cursor: datetime | None = None,
             limit: int = 20,
-    ) -> Sequence[Client]:
+    ) -> Sequence[ClientEntity]:
         async with self._uow_factory() as uow:
             return await uow.client_repo.list(
                 status=status,
@@ -134,17 +135,14 @@ class ClientService:
         try:
             async with self._uow_factory() as uow:
                 client = await self._get_client_or_raise(client_id, uow=uow)
-                new_expiration = client.expires_at + timedelta(days=days)
+                new_expiration = client.extend_subscription(days)
 
-                rw_user = await self._rw_client.update_user(
+                await self._rw_client.update_user(
                     user_uuid=client.remnawave_uuid,
                     expires_at=new_expiration,
                 )
 
-                await uow.client_repo.extend_subscription(
-                    client,
-                    rw_user.expire_at,
-                )
+                await uow.client_repo.update(client)
 
             await self._audit.success(
                 client_id=client_id,
@@ -167,21 +165,18 @@ class ClientService:
     async def block_client(self, *, client_id: uuid.UUID) -> None:
         await self._change_client_status(
             client_id,
-            status=ClientStatus.DISABLED,
             action=OperationAction.BLOCK,
         )
 
     async def unblock_client(self, *, client_id: uuid.UUID) -> None:
         await self._change_client_status(
             client_id,
-            status=ClientStatus.ACTIVE,
             action=OperationAction.UNBLOCK,
         )
 
     async def archive_client(self, *, client_id: uuid.UUID) -> None:
         await self._change_client_status(
             client_id,
-            status=ClientStatus.ARCHIVED,
             action=OperationAction.ARCHIVE_CLIENT,
         )
 

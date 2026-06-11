@@ -5,7 +5,10 @@ from uuid import UUID
 
 import httpx
 
+from app.domain.remnawave import RWUser
+
 from .exceptions import RemnaWaveAPIError, RemnaWaveConnectionError
+from .mapper import RWMapper
 from .schemas import (
     RWClientCreate,
     RWClientResponse,
@@ -41,18 +44,20 @@ class RemnaWaveClient:
 
     async def create_user(
             self, *, username: str, expires_at: datetime
-    ) -> RWClientResponse:
+    ) -> RWUser:
         payload = RWClientCreate(
             username=username,
             expire_at=expires_at,
         ).model_dump(by_alias=True, mode='json')
 
         data = await self._request('POST', '/api/users', json=payload)
-        return RWClientResponse.model_validate(data['response'])
+        response = RWClientResponse.model_validate(data['response'])
+        return RWMapper.to_domain(response)
 
-    async def get_user(self, *, user_uuid: UUID) -> RWClientResponse:
+    async def get_user(self, *, user_uuid: UUID) -> RWUser:
         data = await self._request('GET', f'/api/users/{user_uuid}')
-        return RWClientResponse.model_validate(data['response'])
+        response = RWClientResponse.model_validate(data['response'])
+        return RWMapper.to_domain(response)
 
     async def get_users(
             self,
@@ -106,16 +111,17 @@ class RemnaWaveClient:
 
     async def update_user(
             self, *, user_uuid: UUID, expires_at: datetime
-    ) -> RWClientResponse:
+    ) -> RWUser:
         payload = RWClientUpdate(
             uuid=user_uuid,
             expire_at=expires_at,
         ).model_dump(by_alias=True, mode='json')
 
         data = await self._request('PATCH', '/api/users', json=payload)
-        return RWClientResponse.model_validate(data['response'])
+        response = RWClientResponse.model_validate(data['response'])
+        return RWMapper.to_domain(response)
 
-    async def revoke_subscription(self, *, user_uuid: UUID) -> RWClientResponse:
+    async def revoke_subscription(self, *, user_uuid: UUID) -> RWUser:
         payload = {'revokeOnlyPasswords': False}
 
         data = await self._request(
@@ -123,4 +129,5 @@ class RemnaWaveClient:
             f'/api/users/{user_uuid}/actions/revoke',
             json=payload,
         )
-        return RWClientResponse.model_validate(data['response'])
+        response = RWClientResponse.model_validate(data['response'])
+        return RWMapper.to_domain(response)
